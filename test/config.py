@@ -19,6 +19,6 @@ config = {
     },
     'lr_jitter_scale': 0.01,
     'cache_data': True,
-    # 'get_change_point_stats': True,
-    'get_change_point_stats': False,
+    'get_change_point_stats': True,
+    # 'get_change_point_stats': False,
 }

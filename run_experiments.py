@@ -38,6 +38,9 @@ import importlib.util
 
 notebook = False
 
+plt.style.use('ggplot')
+
+
 """# Gradient estimators and weight re-initialization functions
 
 Here are some options for quantizers with special gradient estimators corresponding weight initialization functions. Here I just provide the remapping functions, and below I'll show how to get this into a deterministic weight initializer.
