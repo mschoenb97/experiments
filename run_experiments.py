@@ -1291,13 +1291,16 @@ def compare_change_point_data(quantizer_warp_cps, initializer_warp_cps):
   assert quantizer_warp_cps.keys() == initializer_warp_cps.keys()
 
   total_weights = 0
-  exact_correct_weight_sequences = 0
   correct_weight_sequences = 0
   total_q_oscillation = 0
   total_i_oscillation = 0
   total_oscillation_error = 0
   total_step_count_error = 0
   total_compressed_change_points = 0
+
+  exact_correct_weight_sequences = 0
+  total_exact_step_count_error = 0
+  total_exact_change_points = 0
 
   for (i, qcps), (_, icps) in tqdm(list(zip(quantizer_warp_cps.items(), initializer_warp_cps.items()))):
 
@@ -1330,7 +1333,6 @@ def compare_change_point_data(quantizer_warp_cps, initializer_warp_cps):
           and np.allclose(qsequence['qvalue'], isequence['qvalue'])
       )
 
-      exact_correct_weight_sequences += exact_correct_sequence
 
       if correct_sequence:
         correct_weight_sequences += 1
@@ -1343,19 +1345,25 @@ def compare_change_point_data(quantizer_warp_cps, initializer_warp_cps):
         assert len(compressed_qsequence) > 0
         total_compressed_change_points += (len(compressed_qsequence) - 1)
 
-      # if not len(compressed_qsequence) == 1:
-      #   import pdb; pdb.set_trace()
+      if exact_correct_sequence:
+        exact_correct_weight_sequences += 1
+        total_exact_step_count_error += np.abs(
+            qsequence['step_count'] - isequence['step_count']).sum()
+        assert len(qsequence) > 0
+        total_exact_change_points += (len(qsequence) - 1)
 
   result_dict = {
       'total_weights': total_weights,
       'correct_weight_sequences': correct_weight_sequences,
-      'exact_correct_weight_sequences': exact_correct_weight_sequences,
       'total_q_oscillation': total_q_oscillation,
       'total_i_oscillation': total_i_oscillation,
       'total_oscillation_error': total_oscillation_error,
       'total_step_count_error': total_step_count_error,
       'total_compressed_change_points': total_compressed_change_points,
-  }
+      'exact_correct_weight_sequences': exact_correct_weight_sequences,
+      'total_exact_step_count_error': total_exact_step_count_error,
+      'total_exact_change_points': total_exact_change_points,
+    }
 
   return result_dict
 
@@ -1461,26 +1469,32 @@ def plot_data(history1, history2, metric, label1, label2, path,
   # Create subplots
   _, axs = plt.subplots(1, 2, figsize=(12, 4))
 
+  prettify = {
+    'loss': 'Loss',
+    'val_loss': 'Validation Loss',
+    'val_accuracy': 'Validation Accuracy',
+  }
+
   # Plot raw data
   axs[0].plot(history1[metric][offset:], label=label1,
               linewidth=linewidth, color='purple', alpha=0.7)
   axs[0].plot(history2[metric][offset:], label=label2,
               linewidth=linewidth, color='red', linestyle='--', alpha=0.7)
-  axs[0].set_title(f'{metric} (Raw Data)')
-  axs[0].set_ylabel(metric.capitalize())
+  axs[0].set_title(f'{prettify[metric]} (Raw Data)')
+  axs[0].set_ylabel(prettify[metric])
   axs[0].set_xlabel('Epoch')
   axs[0].legend(loc='upper left')
 
   # Plot difference between curves
   difference = [a - b for a,
                 b in zip(history1[metric][offset:], history2[metric][offset:])]
-  axs[1].plot(difference, label=f'Difference ({label1} - {label2})',
+  axs[1].plot(difference, label=f'{label1} - {label2}',
               linewidth=linewidth, color='blue', alpha=0.7)
 
   # Add line at zero
   axs[1].axhline(0, color='grey', linestyle='--', linewidth=linewidth)
 
-  axs[1].set_title(f'{metric} (Difference)')
+  axs[1].set_title(f'{prettify[metric]} (Difference)')
   axs[1].set_ylabel('Difference')
   axs[1].set_xlabel('Epoch')
   axs[1].legend(loc='upper left')
@@ -1514,10 +1528,9 @@ def get_history_data(quantizer_warp_history, initializer_warp_history, name, *, 
 
 
 def get_change_point_results(change_point_res, quantizer_warp_data):
+
   res = {}
 
-  res['exact_correct_sequences_proportion'] = change_point_res['exact_correct_weight_sequences'] / \
-      change_point_res['total_weights']
   res['correct_sequences_proportion'] = change_point_res['correct_weight_sequences'] / \
       change_point_res['total_weights']
   res['total_q_oscillation'] = change_point_res["total_q_oscillation"]
@@ -1527,6 +1540,11 @@ def get_change_point_results(change_point_res, quantizer_warp_data):
   res['average_step_count_error'] = change_point_res['total_step_count_error'] / \
       change_point_res['total_compressed_change_points']
   res['total_steps'] = quantizer_warp_data['total_batches']
+
+  res['exact_correct_sequences_proportion'] = change_point_res['exact_correct_weight_sequences'] / \
+      change_point_res['total_weights']
+  res['average_exact_step_count_error'] = change_point_res['total_exact_step_count_error'] / \
+      change_point_res['total_exact_change_points']
 
   return res
 
